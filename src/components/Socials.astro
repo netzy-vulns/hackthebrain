@@ -1,0 +1,74 @@
+---
+import { SOCIALS } from "@/constants";
+import LinkButton from "./LinkButton.astro";
+---
+
+<div class="flex flex-wrap items-center gap-1">
+  {
+    SOCIALS.map(social =>
+      social.name === "Mail" ? (
+        <button
+          class="group inline-flex cursor-pointer items-center gap-1 p-2 outline-offset-1 outline-accent hover:rotate-6 hover:text-accent focus-visible:outline-2 focus-visible:outline-dashed focus-visible:no-underline sm:p-1"
+          data-copy-email={social.href.replace("mailto:", "")}
+          title={social.linkTitle}
+          aria-label={social.linkTitle}
+        >
+          <social.icon class="inline-block size-6 scale-125 fill-transparent stroke-current stroke-2 opacity-90 group-hover:fill-transparent sm:scale-110" />
+          <span class="sr-only">{social.linkTitle}</span>
+        </button>
+      ) : (
+        <LinkButton
+          href={social.href}
+          class="p-2 hover:rotate-6 sm:p-1"
+          title={social.linkTitle}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <social.icon class="inline-block size-6 scale-125 fill-transparent stroke-current stroke-2 opacity-90 group-hover:fill-transparent sm:scale-110" />
+          <span class="sr-only">{social.linkTitle}</span>
+        </LinkButton>
+      )
+    )
+  }
+</div>
+
+<div
+  id="copy-toast"
+  class="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 translate-y-4 rounded-full px-5 py-2.5 text-sm font-medium opacity-0 shadow-lg transition-all duration-300 ease-out"
+  style="background-color: var(--accent); color: var(--background);"
+>
+  ✦ Copied to clipboard
+</div>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const buttons = document.querySelectorAll<HTMLButtonElement>(
+      "[data-copy-email]"
+    );
+    const toast = document.getElementById("copy-toast");
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+    buttons.forEach(button => {
+      button.addEventListener("click", async () => {
+        const email = button.getAttribute("data-copy-email");
+        if (!email || !toast) return;
+
+        try {
+          await navigator.clipboard.writeText(email);
+
+          if (hideTimer) clearTimeout(hideTimer);
+
+          toast.style.opacity = "1";
+          toast.style.transform = "translateX(-50%) translateY(0)";
+
+          hideTimer = setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateX(-50%) translateY(16px)";
+          }, 2000);
+        } catch {
+          console.error("클립보드 복사 실패");
+        }
+      });
+    });
+  });
+</script>
