@@ -1,0 +1,137 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Socials from "@/components/Socials.astro";
+import LinkButton from "@/components/LinkButton.astro";
+import Card from "@/components/Card.astro";
+import getSortedPosts from "@/utils/getSortedPosts";
+import IconRss from "@/assets/icons/IconRss.svg";
+import IconArrowRight from "@/assets/icons/IconArrowRight.svg";
+import { SITE } from "@/config";
+import { SOCIALS } from "@/constants";
+
+const posts = await getCollection("blog");
+
+const sortedPosts = getSortedPosts(posts);
+const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
+const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
+---
+
+<Layout>
+  <Header />
+  <main id="main-content" data-layout="index" class="app-layout">
+    <section id="hero" class:list={["pt-8 pb-6", "border-b border-border"]}>
+      <h1 class="sr-only">hackthebrain — by Netzy</h1>
+
+      <!-- Terminal widget -->
+      <div class="my-6 max-w-lg overflow-hidden rounded-xl border border-border shadow-sm">
+        <!-- Title bar -->
+        <div class="flex items-center gap-2 px-4 py-2.5" style="background-color: var(--muted);">
+          <span class="h-3 w-3 rounded-full" style="background:#ff5f57;"></span>
+          <span class="h-3 w-3 rounded-full" style="background:#ffbd2e;"></span>
+          <span class="h-3 w-3 rounded-full" style="background:#28c840;"></span>
+          <span class="mx-auto text-xs opacity-40">netzy@hackthebrain — zsh</span>
+          <a
+            target="_blank"
+            href="/rss.xml"
+            aria-label="rss feed"
+            title="RSS Feed"
+            class="opacity-40 hover:opacity-80 transition-opacity"
+          >
+            <IconRss width={14} height={14} class="stroke-current stroke-2 rtl:-rotate-90" />
+            <span class="sr-only">RSS Feed</span>
+          </a>
+        </div>
+        <!-- Body -->
+        <div class="space-y-1.5 px-5 py-4 font-mono text-sm">
+          <div>
+            <span class="font-semibold text-accent">netzy@hackthebrain</span><span class="opacity-40">:~$</span>
+            <span class="ml-1">whoami</span>
+          </div>
+          <div class="opacity-70 pl-2">Netzy</div>
+          <div class="pt-2">
+            <span class="font-semibold text-accent">netzy@hackthebrain</span><span class="opacity-40">:~$</span>
+            <span class="ml-1">cat warning.txt</span>
+          </div>
+          <div class="opacity-70 pl-2">Warning: contents may hack your brain.</div>
+          <div class="pt-2">
+            <span class="font-semibold text-accent">netzy@hackthebrain</span><span class="opacity-40">:~$</span>
+            <span class="ml-1 terminal-cursor">▋</span>
+          </div>
+        </div>
+      </div>
+
+      {
+        SOCIALS.length > 0 && (
+          <div class="mt-4 flex max-sm:flex-col sm:items-center">
+            <div class="me-2 mb-1 whitespace-nowrap sm:mb-0 text-sm opacity-60">Social Links:</div>
+            <Socials />
+          </div>
+        )
+      }
+    </section>
+
+    <style>
+      .terminal-cursor {
+        animation: blink 1s step-end infinite;
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+    </style>
+
+    {
+      featuredPosts.length > 0 && (
+        <section
+          id="featured"
+          class:list={[
+            "pt-12 pb-6",
+            { "border-b border-border": recentPosts.length > 0 },
+          ]}
+        >
+          <h2 class="text-2xl font-semibold tracking-wide">Featured</h2>
+          <ul>
+            {featuredPosts.map(data => (
+              <Card variant="h3" {...data} />
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      recentPosts.length > 0 && (
+        <section id="recent-posts" class="pt-12 pb-6">
+          <h2 class="text-2xl font-semibold tracking-wide">Recent Posts</h2>
+          <ul>
+            {recentPosts.map(
+              (data, index) =>
+                index < SITE.postPerIndex && <Card variant="h3" {...data} />
+            )}
+          </ul>
+        </section>
+      )
+    }
+
+    <div class="my-8 text-center">
+      <LinkButton href="/posts/">
+        All Posts
+        <IconArrowRight class="inline-block rtl:-rotate-180" />
+      </LinkButton>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const indexLayout = (document.querySelector("#main-content") as HTMLElement)
+      ?.dataset?.layout;
+    if (indexLayout) {
+      sessionStorage.setItem("backUrl", "/");
+    }
+  });
+</script>
