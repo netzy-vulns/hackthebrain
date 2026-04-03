@@ -1,13 +1,13 @@
 ---
 title: "HTB Firewall and IDS/IPS Evasion — Hard Lab 풀이 (디코이 + 소스포트 53 우회로 필터링 포트 공략)"
-pubDatetime: 2026-03-30T00:00:00+09:00
+pubDatetime: 2026-04-03T20:00:00+09:00
 tags: ["HTB", "pentest", "firewall-evasion", "IDS", "IPS", "nmap", "writeup"]
 description: "HTB Academy Firewall and IDS/IPS Evasion 모듈 Hard Lab 풀이. IDS 알림 카운터를 모니터링하며 디코이(-D RND)와 소스포트 우회(--source-port 53)를 조합해 방화벽으로 필터링된 포트 50000에서 플래그를 획득한다."
 ---
 
 ## 개요
 
-![HTB Hard Lab 환경](./image-9.png)  
+![HTB Hard Lab 환경](./image-9.png)
 HTB Academy Firewall and IDS/IPS Evasion 모듈의 Hard Lab이다. 목표는 하나다.
 
 - **방화벽에 필터링된 포트에서 플래그 획득**
@@ -150,7 +150,7 @@ ACK Scan Timing: About 1.08% done; ETC: 22:10 (0:24:19 remaining)
 
 `status.php`로 IDS 알림 카운트를 확인했다.
 
-![전체 ACK 스캔 — 24분 예상, 속도 저하 발생](./image-10.png)
+![status.php IDS 알림 카운트 증가](./image-10.png)
 
 ```bash
 # 공격자
