@@ -20,15 +20,41 @@ HTB Academy Firewall and IDS/IPS Evasion 모듈의 Hard Lab이다. 목표는 하
 
 ---
 
-## 1. 열거 (Enumeration)
+## 1. 초기 정찰 — IDS 제한 확인
 
-### 초기 포트 스캔
+### status.php로 IDS 알림 카운트 확인
 
-포트를 하나씩 확인하는 방식으로 시작한다. 먼저 22번 포트를 대상으로 서비스 버전을 확인한다.
+가장 먼저 해야 할 일은 환경의 제약 조건을 파악하는 것이다. 대상 서버의 80번 포트에서 `status.php`를 통해 IDS 알림 카운트를 확인할 수 있다.
+
+![status.php IDS 알림 카운트 증가](./image-10.png)
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~/nmap/easy]
+┌──(netzy㉿kali)-[~]
+└─$ curl -s http://10.129.2.47/status.php
+Recorded alerts:         9
+/ 75 alerts
+
+┌──(netzy㉿kali)-[~]
+└─$ curl -s http://10.129.2.47/status.php
+Recorded alerts:         11
+/ 75 alerts
+```
+
+알림이 2씩 증가하는 걸 알 수 있다. curl 요청 자체에도 2가 소모되고 있으며, **최대 75개**라는 제한이 있다. 무작정 전체 포트 스캔(`-p-`)을 때리면 순식간에 알림이 가득 차서 차단당한다.
+
+이 제약 조건 때문에 이후 모든 스캔은 신중하게 진행해야 한다:
+- 포트를 한두 개씩 조심스럽게 확인
+- 디코이(`-D RND:N`)로 IDS 탐지 분산
+- 꼭 필요한 스캔만 실행
+
+### 개별 포트 확인
+
+IDS 제한을 인지했으니, 포트를 하나씩 찔러보는 방식으로 시작한다. 먼저 22번 포트를 대상으로 서비스 버전을 확인한다.
+
+```bash
+# 공격자
+┌──(netzy㉿kali)-[~/nmap/easy]
 └─$ sudo nmap -p 22 -Pn --open -n -sV -sC version -v 10.129.2.47
 Starting Nmap 7.98 ( https://nmap.org ) at 2026-03-28 15:25 +0900
 
@@ -44,7 +70,7 @@ PORT   STATE SERVICE VERSION
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~/nmap/easy]
+┌──(netzy㉿kali)-[~/nmap/easy]
 └─$ sudo nmap -sA 10.129.2.47 -p 53 -Pn -n -sV --script version --source-port=53 -sU
 
 PORT   STATE    SERVICE VERSION
@@ -62,7 +88,7 @@ PORT   STATE    SERVICE VERSION
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~/nmap/easy]
+┌──(netzy㉿kali)-[~/nmap/easy]
 └─$ sudo nmap -sA 10.129.2.47 --top-ports=30 -Pn -n -sV --script version --source-port=53 -vv
 
 PORT     STATE      SERVICE        REASON       VERSION
@@ -99,7 +125,7 @@ unfiltered 포트들(21, 22, 23, 80, 3389 등)은 방화벽 통과는 되지만 
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~]
+┌──(netzy㉿kali)-[~]
 └─$ nmap --top-ports 10 10.129.2.47 -D RND:10
 
 PORT     STATE  SERVICE
@@ -119,7 +145,7 @@ PORT     STATE  SERVICE
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~]
+┌──(netzy㉿kali)-[~]
 └─$ nmap -p 22,80,110,139,445 10.129.2.47 -D RND:10 -sV
 
 PORT    STATE SERVICE     VERSION
@@ -134,54 +160,15 @@ PORT    STATE SERVICE     VERSION
 
 ---
 
-## 4. IDS 알림 모니터링
+## 4. 전체 포트 스캔 — 포트 50000 발견
 
-전체 포트 스캔(`-p-`)을 ACK 스캔으로 시도한다.
-
-```bash
-# 공격자
-┌──(yusu㉿kali)-[~]
-└─$ sudo nmap -sA -p- -D RND:100 -v 10.129.2.47
-...
-ACK Scan Timing: About 1.08% done; ETC: 22:10 (0:24:19 remaining)
-```
-
-혹시 방화벽에 걸릴까, `status.php`로 IDS 알림 카운트를 모니터링한다.
-
-![status.php IDS 알림 카운트 증가](./image-10.png)
-
-curl 요청 한번에 카운트가 몇이나 증가하는지 확인한다.
-
-```bash
-# 공격자
-┌──(yusu㉿kali)-[~]
-└─$ curl -s http://10.129.2.47/status.php
-Recorded alerts:         9
-/ 75 alerts
-
-┌──(yusu㉿kali)-[~]
-└─$ curl -s http://10.129.2.47/status.php
-Recorded alerts:         11
-/ 75 alerts
-```
-
-알림이 2씩 증가하는 걸 알 수 있다. 모니터링만 하는 것에도 2가 소모되니, 75개 제한 안에 flag를 찾는 것은 쉽지 않아보인다.
-
-그래서 접근 전략을 다음과 같이 정리했다:
-
-1. ACK 스캔 결과에서 **unfiltered** 포트(RST 응답) 우선 확인
-2. 해당 포트들 버전 스캔
-3. 남은 **filtered** 포트에 대해 우회 시도
-
----
-
-## 5. 전체 포트 스캔 — 포트 50000 발견
+기본 오픈 포트에서는 플래그를 찾을 수 없었다. 이제 전체 포트를 뒤져야 하는데, 앞서 확인한 IDS 알림 제한(75개)이 문제다. 디코이를 최대한 많이 붙여서 탐지를 분산시킨다.
 
 디코이 100개를 붙인 SYN + 버전 전체 포트 스캔을 실행한다.
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~]
+┌──(netzy㉿kali)-[~]
 └─$ sudo nmap -sS -sV -p- -D RND:100 10.129.45.42
 
 PORT      STATE    SERVICE     VERSION
@@ -199,13 +186,13 @@ Service Info: Host: NIX-NMAP-HARD; OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 ---
 
-## 6. 플래그 획득 — 소스포트 53 우회
+## 5. 플래그 획득 — 소스포트 53 우회
 
 방화벽이 소스포트 53(DNS)에서 오는 트래픽을 신뢰하도록 설정되어 있을 가능성이 높다. `ncat`으로 소스포트를 53으로 지정해 포트 50000에 직접 연결한다.
 
 ```bash
 # 공격자
-┌──(yusu㉿kali)-[~]
+┌──(netzy㉿kali)-[~]
 └─$ ncat -nv --source-port 53 10.129.45.42 50000
 Ncat: Version 7.98 ( https://nmap.org/ncat )
 Ncat: Connected to 10.129.45.42:50000.
@@ -216,16 +203,18 @@ Ncat: Connected to 10.129.45.42:50000.
 
 ---
 
-## 7. 공격 흐름 요약
+## 6. 공격 흐름 요약
 
 ```
+status.php → IDS 알림 카운트 75개 제한 확인 → 신중한 스캔 전략 수립
+    ↓
+개별 포트 확인 (22, 53) → 플래그 없음
+    ↓
 ACK 스캔 (-sA, source-port=53) → unfiltered/filtered 상태 분류
     ↓
 디코이 스캔 (-D RND:10, top 10) → 오픈 포트 식별 (22, 80, 110, 139, 445)
     ↓
 버전 스캔 → 서비스 정보 수집, 플래그 없음
-    ↓
-status.php → IDS 알림 카운트 모니터링
     ↓
 전체 포트 스캔 (-sS -sV -p- -D RND:100) → 포트 50000 filtered 발견
     ↓
@@ -236,7 +225,7 @@ ncat --source-port 53 → 포트 50000 방화벽 우회 성공
 
 ---
 
-## 8. 배운 점
+## 7. 배운 점
 
 - **ACK 스캔의 unfiltered/filtered 해석**: unfiltered는 RST가 돌아온 것으로, 방화벽이 막지 않는다는 뜻이다. 실제 포트 오픈 여부와는 다르다. filtered는 응답이 없어 방화벽이 차단 중임을 의미한다.
 - **디코이(-D RND:N)의 한계**: 디코이는 공격자 IP를 숨기는 데 효과적이지만, IDS 알림 자체를 막지는 못한다. 스캔 패턴이 탐지되면 알림이 쌓인다.
