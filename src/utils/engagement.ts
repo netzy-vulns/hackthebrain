@@ -14,7 +14,6 @@ async function getIpHash(): Promise<string> {
   }
 }
 
-// IP 해시를 캐시하여 같은 페이지에서 재사용
 let cachedIpHash: string | null = null;
 
 async function getCachedIpHash(): Promise<string> {
@@ -24,26 +23,53 @@ async function getCachedIpHash(): Promise<string> {
   return cachedIpHash;
 }
 
+// ============================================
+// sessionStorage 캐시
+// ============================================
+const CACHE_KEY = "post_stats_cache";
+
+function saveToCache(slug: string, stats: { views: number; likes: number }) {
+  try {
+    const cache = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}");
+    cache[slug] = stats;
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch {}
+}
+
+function saveManyToCache(
+  statsMap: Map<string, { views: number; likes: number }>
+) {
+  try {
+    const cache = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}");
+    for (const [slug, stats] of statsMap) {
+      cache[slug] = stats;
+    }
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch {}
+}
+
+export function getFromCache(
+  slug: string
+): { views: number; likes: number } | null {
+  try {
+    const cache = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}");
+    return cache[slug] || null;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
+// API 함수
+// ============================================
+
 export type PostStats = {
   views: number;
   likes: number;
   liked: boolean;
 };
 
-// 1단계: IP 없이 즉시 조회수/좋아요 숫자만 가져오기 (빠름)
-export async function getQuickStats(
-  slug: string
-): Promise<{ views: number; likes: number } | null> {
-  const { data, error } = await supabase
-    .from("post_stats")
-    .select("views, likes")
-    .eq("slug", slug)
-    .single();
-  if (error) return null;
-  return data as { views: number; likes: number };
-}
-
-// 리스트 페이지용: 여러 slug의 stats를 한 번에 조회
+// 리스트 페이지용: 여러 slug의 stats를 한 번에 조회 + 캐시 저장
 export async function getMultipleStats(
   slugs: string[]
 ): Promise<Map<string, { views: number; likes: number }>> {
@@ -59,10 +85,13 @@ export async function getMultipleStats(
   for (const row of data) {
     map.set(row.slug, { views: row.views, likes: row.likes });
   }
+
+  // 캐시에 저장
+  saveManyToCache(map);
   return map;
 }
 
-// 2단계: IP 해시로 조회수 기록 + liked 여부 확인 (백그라운드)
+// IP 해시로 조회수 기록 + liked 여부 확인
 export async function viewPost(slug: string): Promise<PostStats | null> {
   const ipHash = await getCachedIpHash();
   const { data, error } = await supabase.rpc("view_post", {
@@ -73,7 +102,10 @@ export async function viewPost(slug: string): Promise<PostStats | null> {
     console.error("viewPost error:", error);
     return null;
   }
-  return data as PostStats;
+  const stats = data as PostStats;
+  // 캐시 업데이트
+  saveToCache(slug, { views: stats.views, likes: stats.likes });
+  return stats;
 }
 
 export async function toggleLike(

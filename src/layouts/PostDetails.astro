@@ -189,38 +189,35 @@ const nextPost =
 </Layout>
 
 <script>
-  import { getQuickStats, viewPost, toggleLike } from "@/utils/engagement";
+  import { getFromCache, viewPost, toggleLike } from "@/utils/engagement";
+
+  function updateStats(views: number, likes: number) {
+    const viewNumber = document.getElementById("view-count-number");
+    if (viewNumber) viewNumber.textContent = String(views);
+
+    const likeCount = document.getElementById("like-count");
+    if (likeCount) likeCount.textContent = String(likes);
+
+    const headerLikeCount = document.getElementById("header-like-count");
+    if (headerLikeCount) headerLikeCount.textContent = String(likes);
+  }
 
   async function initEngagement() {
     const viewCountEl = document.getElementById("view-count");
     const slug = viewCountEl?.dataset.slug;
     if (!slug) return;
 
-    // 1단계: 숫자 즉시 표시 (IP 불필요, 빠름)
-    const quick = await getQuickStats(slug);
-    if (quick) {
-      const viewNumber = document.getElementById("view-count-number");
-      if (viewNumber) viewNumber.textContent = String(quick.views);
-
-      const likeCount = document.getElementById("like-count");
-      if (likeCount) likeCount.textContent = String(quick.likes);
-
-      const headerLikeCount = document.getElementById("header-like-count");
-      if (headerLikeCount) headerLikeCount.textContent = String(quick.likes);
+    // 1단계: 캐시에서 즉시 표시 (네트워크 요청 없음, 즉시)
+    const cached = getFromCache(slug);
+    if (cached) {
+      updateStats(cached.views, cached.likes);
     }
 
     // 2단계: 백그라운드에서 IP 해시 + 조회수 기록 + liked 상태
     viewPost(slug).then(stats => {
       if (!stats) return;
 
-      const viewNumber = document.getElementById("view-count-number");
-      if (viewNumber) viewNumber.textContent = String(stats.views);
-
-      const likeCount = document.getElementById("like-count");
-      if (likeCount) likeCount.textContent = String(stats.likes);
-
-      const headerLikeCount = document.getElementById("header-like-count");
-      if (headerLikeCount) headerLikeCount.textContent = String(stats.likes);
+      updateStats(stats.views, stats.likes);
 
       const heartIcon = document.getElementById("heart-icon");
       if (stats.liked && heartIcon) {

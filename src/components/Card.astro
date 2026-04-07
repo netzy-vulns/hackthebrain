@@ -54,28 +54,43 @@ const { title, description, ...props } = data;
 </li>
 
 <script>
-  import { getMultipleStats } from "@/utils/engagement";
+  import { getFromCache, getMultipleStats } from "@/utils/engagement";
+
+  function fillCard(card: HTMLElement, views: number, likes: number) {
+    const viewsEl = card.querySelector("[data-card-views]");
+    const likesEl = card.querySelector("[data-card-likes]");
+    if (viewsEl) viewsEl.textContent = String(views);
+    if (likesEl) likesEl.textContent = String(likes);
+  }
 
   async function loadCardStats() {
     const cards = document.querySelectorAll<HTMLElement>("[data-card-slug]");
-    const slugs = Array.from(cards)
-      .map(c => c.dataset.cardSlug)
-      .filter((s): s is string => !!s);
+    const uncachedSlugs: string[] = [];
 
-    if (slugs.length === 0) return;
-
-    const statsMap = await getMultipleStats(slugs);
-
+    // 1단계: 캐시에서 즉시 표시
     for (const card of cards) {
       const slug = card.dataset.cardSlug;
       if (!slug) continue;
 
-      const stats = statsMap.get(slug);
-      const viewsEl = card.querySelector("[data-card-views]");
-      const likesEl = card.querySelector("[data-card-likes]");
+      const cached = getFromCache(slug);
+      if (cached) {
+        fillCard(card, cached.views, cached.likes);
+      } else {
+        uncachedSlugs.push(slug);
+      }
+    }
 
-      if (viewsEl) viewsEl.textContent = stats ? String(stats.views) : "0";
-      if (likesEl) likesEl.textContent = stats ? String(stats.likes) : "0";
+    // 2단계: 캐시에 없는 것만 Supabase에서 가져오기
+    if (uncachedSlugs.length === 0) return;
+
+    const statsMap = await getMultipleStats(uncachedSlugs);
+
+    for (const card of cards) {
+      const slug = card.dataset.cardSlug;
+      if (!slug || !statsMap.has(slug)) continue;
+
+      const stats = statsMap.get(slug)!;
+      fillCard(card, stats.views, stats.likes);
     }
   }
 
