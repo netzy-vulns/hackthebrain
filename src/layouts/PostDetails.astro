@@ -204,20 +204,24 @@ const nextPost =
 
       const likeCount = document.getElementById("like-count");
       if (likeCount) likeCount.textContent = String(quick.likes);
+
+      const headerLikeCount = document.getElementById("header-like-count");
+      if (headerLikeCount) headerLikeCount.textContent = String(quick.likes);
     }
 
     // 2단계: 백그라운드에서 IP 해시 + 조회수 기록 + liked 상태
     viewPost(slug).then(stats => {
       if (!stats) return;
 
-      // 조회수가 증가했으면 업데이트
       const viewNumber = document.getElementById("view-count-number");
       if (viewNumber) viewNumber.textContent = String(stats.views);
 
       const likeCount = document.getElementById("like-count");
       if (likeCount) likeCount.textContent = String(stats.likes);
 
-      // liked 상태 반영
+      const headerLikeCount = document.getElementById("header-like-count");
+      if (headerLikeCount) headerLikeCount.textContent = String(stats.likes);
+
       const heartIcon = document.getElementById("heart-icon");
       if (stats.liked && heartIcon) {
         heartIcon.setAttribute("fill", "currentColor");
@@ -238,6 +242,9 @@ const nextPost =
       if (result) {
         const likeCount = document.getElementById("like-count");
         if (likeCount) likeCount.textContent = String(result.likes);
+
+        const headerLikeCount = document.getElementById("header-like-count");
+        if (headerLikeCount) headerLikeCount.textContent = String(result.likes);
 
         if (heartIcon) {
           if (result.liked) {
