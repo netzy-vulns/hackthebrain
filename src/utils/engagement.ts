@@ -43,6 +43,25 @@ export async function getQuickStats(
   return data as { views: number; likes: number };
 }
 
+// 리스트 페이지용: 여러 slug의 stats를 한 번에 조회
+export async function getMultipleStats(
+  slugs: string[]
+): Promise<Map<string, { views: number; likes: number }>> {
+  const map = new Map<string, { views: number; likes: number }>();
+  if (slugs.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("post_stats")
+    .select("slug, views, likes")
+    .in("slug", slugs);
+
+  if (error || !data) return map;
+  for (const row of data) {
+    map.set(row.slug, { views: row.views, likes: row.likes });
+  }
+  return map;
+}
+
 // 2단계: IP 해시로 조회수 기록 + liked 여부 확인 (백그라운드)
 export async function viewPost(slug: string): Promise<PostStats | null> {
   const ipHash = await getCachedIpHash();
