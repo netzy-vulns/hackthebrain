@@ -189,32 +189,41 @@ const nextPost =
 </Layout>
 
 <script>
-  import { viewPost, toggleLike } from "@/utils/engagement";
+  import { getQuickStats, viewPost, toggleLike } from "@/utils/engagement";
 
   async function initEngagement() {
     const viewCountEl = document.getElementById("view-count");
     const slug = viewCountEl?.dataset.slug;
     if (!slug) return;
 
-    // 조회수 증가 + 현재 상태 로드
-    const stats = await viewPost(slug);
-    if (stats) {
+    // 1단계: 숫자 즉시 표시 (IP 불필요, 빠름)
+    const quick = await getQuickStats(slug);
+    if (quick) {
+      const viewNumber = document.getElementById("view-count-number");
+      if (viewNumber) viewNumber.textContent = String(quick.views);
+
+      const likeCount = document.getElementById("like-count");
+      if (likeCount) likeCount.textContent = String(quick.likes);
+    }
+
+    // 2단계: 백그라운드에서 IP 해시 + 조회수 기록 + liked 상태
+    viewPost(slug).then(stats => {
+      if (!stats) return;
+
+      // 조회수가 증가했으면 업데이트
       const viewNumber = document.getElementById("view-count-number");
       if (viewNumber) viewNumber.textContent = String(stats.views);
 
       const likeCount = document.getElementById("like-count");
       if (likeCount) likeCount.textContent = String(stats.likes);
 
-      const headerLikeCount = document.getElementById("header-like-count");
-      if (headerLikeCount) headerLikeCount.textContent = String(stats.likes);
-
-      // 이미 좋아요 했으면 채워진 하트 표시
+      // liked 상태 반영
       const heartIcon = document.getElementById("heart-icon");
       if (stats.liked && heartIcon) {
         heartIcon.setAttribute("fill", "currentColor");
         heartIcon.classList.add("text-red-500");
       }
-    }
+    });
 
     // 좋아요 버튼 클릭 핸들러
     const likeButton = document.getElementById("like-button");
@@ -229,9 +238,6 @@ const nextPost =
       if (result) {
         const likeCount = document.getElementById("like-count");
         if (likeCount) likeCount.textContent = String(result.likes);
-
-        const headerLikeCount = document.getElementById("header-like-count");
-        if (headerLikeCount) headerLikeCount.textContent = String(result.likes);
 
         if (heartIcon) {
           if (result.liked) {

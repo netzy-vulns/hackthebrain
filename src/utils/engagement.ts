@@ -10,7 +10,6 @@ async function getIpHash(): Promise<string> {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
   } catch {
-    // IP를 가져올 수 없으면 랜덤 해시 (좋아요 중복 방지 불가, 조회수는 정상 동작)
     return crypto.randomUUID();
   }
 }
@@ -31,6 +30,20 @@ export type PostStats = {
   liked: boolean;
 };
 
+// 1단계: IP 없이 즉시 조회수/좋아요 숫자만 가져오기 (빠름)
+export async function getQuickStats(
+  slug: string
+): Promise<{ views: number; likes: number } | null> {
+  const { data, error } = await supabase
+    .from("post_stats")
+    .select("views, likes")
+    .eq("slug", slug)
+    .single();
+  if (error) return null;
+  return data as { views: number; likes: number };
+}
+
+// 2단계: IP 해시로 조회수 기록 + liked 여부 확인 (백그라운드)
 export async function viewPost(slug: string): Promise<PostStats | null> {
   const ipHash = await getCachedIpHash();
   const { data, error } = await supabase.rpc("view_post", {
