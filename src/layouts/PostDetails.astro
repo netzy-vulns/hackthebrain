@@ -217,7 +217,10 @@ const nextPost =
     viewPost(slug).then(stats => {
       if (!stats) return;
 
-      updateStats(stats.views, stats.likes);
+      // 캐시가 없었을 때만 숫자 표시 (캐시→API 값 변동 방지)
+      if (!cached) {
+        updateStats(stats.views, stats.likes);
+      }
 
       const heartIcon = document.getElementById("heart-icon");
       if (stats.liked && heartIcon) {
