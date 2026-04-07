@@ -7,6 +7,8 @@ import Tag from "@/components/Tag.astro";
 import Datetime from "@/components/Datetime.astro";
 import EditPost from "@/components/EditPost.astro";
 import ShareLinks from "@/components/ShareLinks.astro";
+import ViewCount from "@/components/ViewCount.astro";
+import LikeButton from "@/components/LikeButton.astro";
 import BackButton from "@/components/BackButton.astro";
 import BackToTopButton from "@/components/BackToTopButton.astro";
 import { getPath } from "@/utils/getPath";
@@ -36,6 +38,8 @@ const {
 } = post.data;
 
 const { Content } = await render(post);
+
+const slug = post.id;
 
 let ogImageUrl: string | undefined;
 
@@ -98,6 +102,8 @@ const nextPost =
     </h1>
     <div class="my-2 flex items-center gap-2">
       <Datetime {pubDatetime} {modDatetime} {timezone} size="lg" />
+      <span aria-hidden="true" class="opacity-80">|</span>
+      <ViewCount {slug} />
       <span
         aria-hidden="true"
         class:list={[
@@ -123,6 +129,8 @@ const nextPost =
     </ul>
 
     <BackToTopButton />
+
+    <LikeButton {slug} />
 
     <ShareLinks />
 
@@ -162,6 +170,63 @@ const nextPost =
   </main>
   <Footer />
 </Layout>
+
+<script>
+  import { viewPost, toggleLike } from "@/utils/engagement";
+
+  async function initEngagement() {
+    const viewCountEl = document.getElementById("view-count");
+    const slug = viewCountEl?.dataset.slug;
+    if (!slug) return;
+
+    // 조회수 증가 + 현재 상태 로드
+    const stats = await viewPost(slug);
+    if (stats) {
+      const viewNumber = document.getElementById("view-count-number");
+      if (viewNumber) viewNumber.textContent = String(stats.views);
+
+      const likeCount = document.getElementById("like-count");
+      if (likeCount) likeCount.textContent = String(stats.likes);
+
+      // 이미 좋아요 했으면 채워진 하트 표시
+      if (stats.liked) {
+        document.getElementById("heart-empty")?.classList.add("hidden");
+        document.getElementById("heart-filled")?.classList.remove("hidden");
+      }
+    }
+
+    // 좋아요 버튼 클릭 핸들러
+    const likeButton = document.getElementById("like-button");
+    let isProcessing = false;
+
+    likeButton?.addEventListener("click", async () => {
+      if (isProcessing) return;
+      isProcessing = true;
+
+      const result = await toggleLike(slug);
+      if (result) {
+        const likeCount = document.getElementById("like-count");
+        if (likeCount) likeCount.textContent = String(result.likes);
+
+        const heartEmpty = document.getElementById("heart-empty");
+        const heartFilled = document.getElementById("heart-filled");
+
+        if (result.liked) {
+          heartEmpty?.classList.add("hidden");
+          heartFilled?.classList.remove("hidden");
+        } else {
+          heartEmpty?.classList.remove("hidden");
+          heartFilled?.classList.add("hidden");
+        }
+      }
+
+      isProcessing = false;
+    });
+  }
+
+  // Astro view transitions 지원
+  document.addEventListener("astro:page-load", initEngagement);
+</script>
 
 <script is:inline data-astro-rerun>
   /** Create a progress indicator
